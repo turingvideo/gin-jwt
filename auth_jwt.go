@@ -10,6 +10,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/satori/go.uuid"
 )
 
 // MapClaims type that uses the map[string]interface{} for JSON decoding
@@ -25,7 +26,7 @@ type GinJWTMiddleware struct {
 	// Realm name to display to the user. Required.
 	Realm string
 
-	// signing algorithm - possible values are HS256, HS384, HS512
+	// signing algorithm - possible values are HS256, HS384, HS512, RS256, RS384 or RS512
 	// Optional, default is HS256.
 	SigningAlgorithm string
 
@@ -110,6 +111,9 @@ type GinJWTMiddleware struct {
 
 	// Optionally return the token as a cookie
 	SendCookie bool
+
+	// Duration that a cookie is valid. Optional, by default equals to Timeout value.
+	CookieMaxAge time.Duration
 
 	// Allow insecure cookies for development over http
 	SecureCookie bool
@@ -335,6 +339,10 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		mw.Realm = "gin jwt"
 	}
 
+	if mw.CookieMaxAge == 0 {
+		mw.CookieMaxAge = mw.Timeout
+	}
+
 	if mw.CookieName == "" {
 		mw.CookieName = "jwt"
 	}
@@ -444,6 +452,8 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	expire := mw.TimeFunc().Add(mw.Timeout)
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
+	// add uuid as a default claim
+	claims["uuid"] = uuid.NewV4()
 	tokenString, err := mw.signedString(token)
 
 	if err != nil {
@@ -453,7 +463,8 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 
 	// set cookie
 	if mw.SendCookie {
-		maxage := int(expire.Unix() - time.Now().Unix())
+		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
+		maxage := int(expireCookie.Unix() - mw.TimeFunc().Unix())
 		c.SetCookie(
 			mw.CookieName,
 			tokenString,
@@ -536,7 +547,8 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 
 	// set cookie
 	if mw.SendCookie {
-		maxage := int(expire.Unix() - time.Now().Unix())
+		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
+		maxage := int(expireCookie.Unix() - time.Now().Unix())
 		c.SetCookie(
 			mw.CookieName,
 			tokenString,
@@ -592,6 +604,8 @@ func (mw *GinJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time,
 	expire := mw.TimeFunc().UTC().Add(mw.Timeout)
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
+	// generate a new uuid for refreshed token
+	claims["uuid"] = uuid.NewV4()
 	tokenString, err := mw.signedString(token)
 	if err != nil {
 		return "", time.Time{}, err
