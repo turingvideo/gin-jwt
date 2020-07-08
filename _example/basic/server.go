@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
+	"github.com/turingvideo/gin-jwt"
 )
 
 type login struct {

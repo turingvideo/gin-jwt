@@ -539,6 +539,8 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 	expire := mw.TimeFunc().Add(mw.Timeout)
 	newClaims["exp"] = expire.Unix()
 	newClaims["orig_iat"] = mw.TimeFunc().Unix()
+	// add uuid as a default claim
+	claims["uuid"] = uuid.NewV4()
 	tokenString, err := mw.signedString(newToken)
 
 	if err != nil {
