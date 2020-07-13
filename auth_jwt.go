@@ -453,7 +453,13 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
 	// add uuid as a default claim
-	claims["uuid"] = uuid.NewV4()
+	uuid, err := uuid.NewV4()
+	if err != nil {
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
+		return
+	}
+	claims["uuid"] = uuid
+
 	tokenString, err := mw.signedString(token)
 
 	if err != nil {
@@ -540,7 +546,12 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 	newClaims["exp"] = expire.Unix()
 	newClaims["orig_iat"] = mw.TimeFunc().Unix()
 	// generate a new uuid for refreshed token
-	newClaims["uuid"] = uuid.NewV4()
+	uuid, err := uuid.NewV4()
+	if err != nil {
+		return "", time.Now(), err
+	}
+	newClaims["uuid"] = uuid
+
 	tokenString, err := mw.signedString(newToken)
 
 	if err != nil {
@@ -607,7 +618,12 @@ func (mw *GinJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time,
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
 	// add uuid as a default claim
-	claims["uuid"] = uuid.NewV4()
+	uuid, err := uuid.NewV4()
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	claims["uuid"] = uuid
+
 	tokenString, err := mw.signedString(token)
 	if err != nil {
 		return "", time.Time{}, err
